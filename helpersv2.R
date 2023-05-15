@@ -16,7 +16,7 @@ library(magrittr) ### for %<>% pipe
 ## Amounts are rounded to 0.01
 ### Results are considered as strings
 currency_format = function(amount,currency){
-  
+
   euro <- label_dollar(
     prefix = "",
     suffix = " \u20ac",
@@ -35,8 +35,8 @@ currency_format = function(amount,currency){
     big.mark=" ",
     accuracy=0.01
   )
-  
-  dplyr::case_match(currency, 
+
+  case_match(currency,
              "EUR" ~ ifelse (!is.na(amount), euro(amount), NA),
              "CHF"~  ifelse (!is.na(amount), chf(amount), NA),
              "USD"~  ifelse (!is.na(amount), dollar(amount), NA))
@@ -46,7 +46,7 @@ currency_format = function(amount,currency){
 getLastTickerData = function(ticker) {
   if (is.null(ticker) |
       ticker %in% c("","All")) return(list(last=NA,change=NA))
-  
+
   ### Retrieve data from Yahoo Finance - no need to launch IBKR TWS
   ### Get last price and last change (J/J-1)
   tryCatch({
@@ -69,27 +69,27 @@ lastSPY=getLastTickerData("SPY")  ### Mkt value
 
 read_trade= function(file){
   print(file)
-  
+
   ### check.names change "Put/Call" column name into "Put.Call" which is easier to handle
   trade=read.csv(file,check.names = TRUE)
-  
+
   ### First group all sub-trades on different exchanges but with same underlying,strike, exp. date, quantity sign (in case buy and sell the same day)
   # and rights into a single position
   trade = trade %>% group_by(Date=as.Date(ymd_hms(`Date.Time`)),UnderlyingSymbol,Strike,Description,Put.Call,
-                             Exp.Date=as.Date(ymd(Expiry)),CurrencyPrimary,Sign=sign(Quantity)) %>% 
+                             Exp.Date=as.Date(ymd(Expiry)),CurrencyPrimary,Sign=sign(Quantity)) %>%
     summarize(Pos=sum(Quantity),Prix=abs(weighted.mean(sign(Quantity)*Price,abs(Quantity))),`Comm.`=-sum(Commission),Proceeds=sum(Proceeds),
               Total=sum(Proceeds)+sum(Commission),
               Code=paste0(unique(as.list(strsplit(gsub("[^[:alnum:] ]", "",Code),"")[[1]])),collapse=""))
-  
-  trade = trade %>% 
+
+  trade = trade %>%
     select(Date,Ssjacent=UnderlyingSymbol,Description,Strike,Put.Call,Exp.Date,Pos,Prix,#Proceeds,
            Comm.,Total,Code,Currency=CurrencyPrimary)
-  
+
   return(trade)
-  
+
 }
 
-### This function takes as input an IBKR-generated Flex Query CSV file 
+### This function takes as input an IBKR-generated Flex Query CSV file
 ### -> go to Account Management Home / Flex Queries / TradeLive and execute with CSV and time period arguments
 ### THen it processes this IBKR CSV file and produces one file names "Report-<<account type>>-date of today.csv"
 ### Data written to the file is also returned by the function readTrades
@@ -97,10 +97,10 @@ read_trade= function(file){
 readTrades= function(file,typeAccount){
   #### Convert data coming from IBKR into data more readable and summarized
   #### Store resulting data
-  
+
   trade=read_trade(file)
   #### Note: Using read.table will not work as it expects row numbers - and therefore 1 column less in the header
-  
+
   ### Treat case where a combo exists
   simpletrade= trade %>% group_by(Date,Ssjacent,Exp.Date,Put.Call,Currency,Code) %>% filter(n() == 1)
   combotrade= trade %>% group_by(Date,Ssjacent,Exp.Date,Put.Call,Currency,Code) %>% filter(n() != 1)
@@ -114,11 +114,11 @@ readTrades= function(file,typeAccount){
                 #ComboProceeds=sum(Proceeds),
                 ComboComm.=sum(Comm.),
                 ComboTotal=sum(Total))
-    
+
     combotrade=mutate(combotrade,ComboDescription=paste(Ssjacent,"Vertical Spread",
                                              format(Exp.Date,"%d.%m.%Y"),ComboStrike,ComboPut.Call))
-    
-    
+
+
     combotrade=ungroup(combotrade) %>% select(Date,Ssjacent,Description=ComboDescription,Exp.Date,
                                      Currency,Code,Pos=ComboPos,Prix=ComboPrix,
                                      Comm.=ComboComm.,Total=ComboTotal)
@@ -127,18 +127,18 @@ readTrades= function(file,typeAccount){
                                                 Comm.,Total)
     trade=rbind(simpletrade,combotrade)
   }
-  
-  trade= trade %>% arrange(Date) %>% 
-    mutate(Nbj=Exp.Date-today())  %>% 
+
+  trade= trade %>% arrange(Date) %>%
+    mutate(Nbj=Exp.Date-today())  %>%
     mutate(Date=format(Date,"%d.%m.%Y"),Exp.Date=format(Exp.Date,"%d.%m.%Y"))
-  
+
   trade= cbind(TradeNr=0, Account=typeAccount,TradeDate=trade$Date,Theme="",Idee="",
                Description=trade$Description,Ssjacent=trade$Ssjacent,
                Pos=trade$Pos,Prix=trade$Prix,Comm.=trade$Comm.,
                Total=trade$Total,Exp.Date=trade$Exp.Date,Nbj=trade$Nbj,
                Risk="",R="",Reward="",PnL="",Statut=trade$Code,
                Curr.=trade$Currency,Commentaires="")
-  
+
   write.table(x=as.data.frame(trade),file=paste0(NewTrading,"Report-",
                                                  typeAccount,"-",format(today(),"%d.%m.%Y"),".csv",
                                                  collapse=""),

@@ -1,7 +1,7 @@
 ########################################  UI ###############################
 ui <- fluidPage(
   titlePanel("Journal de trades"),
-  
+
   fluidRow(
     column(width = 3,
            selectInput("account","Account: ",choices=c("Live","Simu"),selected="Live"),
@@ -11,25 +11,19 @@ ui <- fluidPage(
                        ,step = 7),
            br(),
            p(strong("SPY= "),lastSPY$last,strong("   Change= "),lastSPY$change),
-           p(strong("Symbol price:"),textOutput("sym_price",inline=TRUE), 
+           p(strong("Symbol price:"),textOutput("sym_price",inline=TRUE),
              strong("Symbol price change:"),textOutput("sym_price_change",inline=TRUE))
     ),
-    
+
     column(width=9,
            tabsetPanel(type = "tabs",
-                       # tabPanel("Idées", 
-                       #          textAreaInput("inputIdee", label = "Enter text:", value = "",width="800px",height = "400px"),
-                       #          actionButton("saveIdee", "Save", icon("paper-plane"), 
-                       #                       style="color: #fff; background-color: #337ab7; border-color: #2e6da4")),
-                       # tabPanel("Journal",
-                       #          DTOutput("text_output")),
                        tabPanel("Trades",
                                 h3("TRADE"),
                                 h5("PnL",tableOutput("PnL")),
                                 DTOutput("trades"),
                                 actionButton("loadTrades","Load", icon("truck"),
                                              style="color: white; background-color: #337ab7; border-color: #2e6da4"),
-                                actionButton("saveTrades", "Save", icon("paper-plane"), 
+                                actionButton("saveTrades", "Save", icon("paper-plane"),
                                     style="color: #fff; background-color: #337ab7; border-color: #2e6da4"),
                        ),
                        tabPanel("New Trades",
@@ -45,7 +39,7 @@ ui <- fluidPage(
                                                       style="color: white; background-color: #337ab7; border-color: #2e6da4"),
                                         actionButton("remove","Remove", icon("trash"),
                                                     style="color: white; background-color: #337ab7; border-color: #2e6da4"))
-                                
+
                                 ),
                                 br(),
                                 DTOutput("newtrades")
