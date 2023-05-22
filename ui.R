@@ -6,8 +6,8 @@ ui <- fluidPage(
     column(width = 3,
            selectInput("account","Account: ",choices=c("Live","Simu"),selected="Live"),
            textInput("sym",label="Symbol: ",placeholder="All to get all tickers",value="All"),
-           sliderInput("init_nr",label="Init nr.: ",max=300,min=1,value=c(100,250),step = 5),
-           sliderInput("init_date",label="Init date: ",max=today(),min=ymd("2022-10-01"),value=c(ymd("2023-01-01"),today()-30)
+           sliderInput("init_nr",label="Init nr.: ",max=300,min=1,value=250,step = 5),
+           sliderInput("init_date",label="Init date: ",max=today(),min=ymd("2022-10-01"),value=today()-30
                        ,step = 7),
            br(),
            p(strong("SPY= "),lastSPY$last,strong("   Change= "),lastSPY$change),
