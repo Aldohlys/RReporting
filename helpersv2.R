@@ -128,18 +128,16 @@ readTrades= function(file,typeAccount){
     trade=rbind(simpletrade,combotrade)
   }
 
-  trade= trade %>% arrange(Date) %>%
-    mutate(Nbj=Exp.Date-today())  %>%
-    mutate(Date=format(Date,"%d.%m.%Y"),Exp.Date=format(Exp.Date,"%d.%m.%Y"))
+  trade %<>% arrange(Date)
 
-  trade= cbind(TradeNr=0, Account=typeAccount,TradeDate=trade$Date,Theme="",Idee="",
-               Description=trade$Description,Ssjacent=trade$Ssjacent,
+  trade= as.data.frame(cbind(Account=typeAccount,TradeDate=format(trade$Date,"%d.%m.%Y"),
+               Description=trade$Description,Ssjacent=trade$Ssjacent, Exp.Date=format(trade$Exp.Date,"%d.%m.%Y"),
                Pos=trade$Pos,Prix=trade$Prix,Comm.=trade$Comm.,
-               Total=trade$Total,Exp.Date=trade$Exp.Date,Nbj=trade$Nbj,
-               Risk="",R="",Reward="",PnL="",Statut=trade$Code,
-               Curr.=trade$Currency,Commentaires="")
+               Total=trade$Total,Statut=trade$Code,
+                 Curr.=trade$Currency))
 
-  write.table(x=as.data.frame(trade),file=paste0(NewTrading,"Report-",
+  ### Useful as safety
+  write.table(x=trade,file=paste0(NewTrading,"Report-",
                                                  typeAccount,"-",format(today(),"%d.%m.%Y"),".csv",
                                                  collapse=""),
               row.names=FALSE,sep=";",dec=".",quote=FALSE)

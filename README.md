@@ -28,9 +28,11 @@ After it is possible to save the updated Trades.csv file
 
 **Missing features:**
 
--   Like PnL, sum Risk and Reward for selected Trades lines
+-   P3 Like PnL, sum Risk and Reward for selected Trades lines
 
--   Add Update button in Trade tab: Possibility to edit any line in the
-    Trades.csv file and modify Idée/Comment field or Risk/Reward fields
+-   P2 Add Update button in Trade tab: Possibility to edit any line in
+    the Trades.csv file and modify Idée/Comment field or Risk/Reward
+    fields
 
--   Add Delete button in Trade Tab: Remove any line in Trades.csv file
+-   P3 Add Delete button in Trade Tab: Remove any line in Trades.csv
+    file
