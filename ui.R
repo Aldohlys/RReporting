@@ -25,6 +25,10 @@ ui <- fluidPage(
                                              style="color: white; background-color: #337ab7; border-color: #2e6da4"),
                                 actionButton("saveTrades", "Save", icon("paper-plane"),
                                     style="color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+                                actionButton("modifyTrade", "Modify", icon("pencil"),
+                                             style="color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+                                actionButton("deleteTrades", "Delete", icon("trash"),
+                                                                                                                                 style="color: #fff; background-color: #337ab7; border-color: #2e6da4"),
                        ),
                        tabPanel("New Trades",
                                 fluidRow(

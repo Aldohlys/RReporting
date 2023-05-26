@@ -83,6 +83,10 @@ server <- function(input, output, session) {
                            col.names=TRUE,row.names=FALSE,sep=";",dec=".",quote=TRUE)
   })
 
+  ##### MODIFY & DELETE action button
+  observeEvent(input$modifyTrade,{print("Modify pressed"); actionUser("Modify"); showModalModify()})
+  observeEvent(input$deleteTrades,{print("Delete pressed"); actionUser("Delete"); showModalDelete()})
+
   ### 17 fields in Trades.csv file
   trade_fields=c("TradeNr","Account","TradeDate","Thème","Remarques",
                  "Instrument","Ssjacent","Pos","Prix","Comm.",
