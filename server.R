@@ -44,7 +44,7 @@ server <- function(input, output, session) {
   all_trades = reactiveVal()
   max_tradenr = reactiveVal()
 
-  #### LOAD action button
+  #### LOAD action button   ###################
   #### Filter only for account
   observeEvent(input$loadTrades, {
                 print("loadTrades:")
@@ -73,8 +73,7 @@ server <- function(input, output, session) {
                 updateSliderInput(inputId = "init_date",min=date_min,max=today(),value=today()-30)
   })
 
-
-  ##### SAVE action button
+  ##### SAVE action button ########################
   ##### !!!! This will erase all trades on Trades.csv file and save everything again on this file
   observeEvent(input$saveTrades, {
                file.copy(from=paste0(NewTrading,"Trades.csv"),
@@ -83,11 +82,11 @@ server <- function(input, output, session) {
                            col.names=TRUE,row.names=FALSE,sep=";",dec=".",quote=TRUE)
   })
 
-  ##### MODIFY & DELETE action button
+  ##### MODIFY & DELETE action button #########################
   observeEvent(input$modifyTrade,{print("Modify pressed"); actionUser("Modify"); showModalModify()})
   observeEvent(input$deleteTrades,{print("Delete pressed"); actionUser("Delete"); showModalDelete()})
 
-  ### 17 fields in Trades.csv file
+  ### Trade management - 17 fields in Trades.csv file ###################
   trade_fields=c("TradeNr","Account","TradeDate","Thème","Remarques",
                  "Instrument","Ssjacent","Pos","Prix","Comm.",
                  "Total","Exp.Date","Risk",
@@ -167,20 +166,34 @@ server <- function(input, output, session) {
     }
   })
 
-  #### Computes and displays PnL stats according to datatable output$trades possibly filtered by user
+  #### Computes and displays PnL stats according to datatable output$trades possibly filtered by user or with selected lines
   output$PnL = renderTable({
-    data = sub_all_trades()
-    if (!is.null(data)) {
-      PnL=as.numeric(data[input$trades_rows_all, "PnL"])
-      PnL_tot=sum(PnL,na.rm = TRUE)
-      PnL_tot=label_dollar(accuracy=0.01,prefix="",suffix="$")(PnL_tot)
-      PnL_mean=mean(PnL,na.rm = TRUE)
-      PnL_mean=label_dollar(accuracy=0.01,prefix="",suffix="$")(PnL_mean)
-      PnL_sd=sd(PnL,na.rm = TRUE)
-      PnL_sd=label_dollar(accuracy=0.01,prefix="",suffix="$")(PnL_sd)
+    print("output$PnL:")
+    req(input$trades_rows_all)
 
-      data.frame(Total=PnL_tot,Mean=PnL_mean,SD=PnL_sd)
+    data = sub_all_trades()
+    #### Extract only trades rows displayed by user (filtered or searched out) or selected
+    if(nrow(data[input$trades_rows_selected,])==0)  sub_data=data[input$trades_rows_all,]
+    else sub_data=data[input$trades_rows_selected,]
+
+    if (!is.null(sub_data)) {
+
+      ### Compute realized PnL stats and look at currency
+      sub_closed_trades= filter(sub_data,Statut=="Fermé")
+      print(head(sub_closed_trades))
+      if(is.null(sub_closed_trades)) rPnL_stats=list(Realized_PnL=,Mean_Realized_PnL=0)
+      else rPnL_stats=compute_stats(sub_closed_trades$PnL,sub_closed_trades$Currency)
+
+      ### Compute unrealized PnL stats
+      sub_opened_trades=filter(sub_data,Statut=="Ouvert" | Statut=="Ajusté")
+      if(is.null(sub_opened_trades)) uPnL_stats=list(Unrealized_PnL=,Mean_Unrealized_PnL=0)
+      else uPnL_stats=compute_stats(sub_opened_trades$Total,sub_opened_trades$Currency)
+
+      data.frame(Realized_PnL=rPnL_stats$sum,Mean_Realized_PnL=rPnL_stats$mean,
+                 Unrealized_PnL=uPnL_stats$sum,Mean_Unrealized_PnL=uPnL_stats$mean)
     }
+    else data.frame(Realized_PnL=0,Mean_Realized_PnL=0,
+                    Unrealized_PnL=0,Mean_Unrealized_PnL=0)
   })
 
   ############################### Tab New Trades #############################
