@@ -9,12 +9,12 @@ library(DT)  ### Data table
 library(scales) ### label_percent function
 library(readr) ## for read_delim function
 library(magrittr) ### for %<>% pipe
-
+library(reticulate)
 
 
 #Returns the amount values formatted with their respective currency sign, based on the currency argument
 ## Amounts are rounded to 0.01
-### Results are considered as strings
+
 currency_format = function(amount,currency){
 
   euro <- label_dollar(
@@ -42,7 +42,53 @@ currency_format = function(amount,currency){
              "USD"~  ifelse (!is.na(amount), dollar(amount), NA))
 }
 
+reticulate::py_run_file("C:/Users/aldoh/Documents/R/Trading/RAnalysis/getContractValue.py")
 
+EUR = py$getCurrencyPairValue("EURUSD",reqType=2)
+if(is.na(EUR)) {
+  cat("No value for EUR-USD pair\nEnter new value: ")
+  EUR=readLines(con="stdin", n=1)[[1]]
+}
+EUR=as.double(EUR)
+
+CHF = py$getCurrencyPairValue("CHFUSD",reqType=2)
+if(is.na(CHF)) {
+  cat("No value for CHF-USD pair\nEnter new value: ")
+  CHF=readLines(con="stdin", n=1)[[1]]
+}
+CHF= as.double(CHF)
+USD=as.double(1)
+
+
+#### takes 2 vectors (one double, one string) as input and compute sum and mean for one or multiple currencies
+### Returns strings
+compute_stats = function(amount,currency) {
+
+  if (length(unique(currency))==1) { ### This specific case allows result to be displayed in EUR or CHF according to symbol
+    currency=unique(currency)
+    tot=sum(amount,na.rm = TRUE)
+    tot=currency_format(tot,currency)
+    avg=mean(amount,na.rm = TRUE)
+    avg=currency_format(avg,currency)
+  }
+
+  else { ### General case -multiple currencies- may still occur and needs to be taken into consideration
+    ### Convert PnL into USD if originally in CHF or EUR
+    amount = case_match(currency, "EUR" ~ EUR*amount, "CHF"~  CHF*amount, "USD"~  amount)
+    tot=sum(amount,na.rm = TRUE)
+    tot=currency_format(tot,"USD")
+    avg=mean(amount,na.rm = TRUE)
+    avg=currency_format(avg,"USD")
+  }
+  list(sum=tot, mean=avg)
+}
+
+
+
+
+
+
+################################################################
 getLastTickerData = function(ticker) {
   if (is.null(ticker) |
       ticker %in% c("","All")) return(list(last=NA,change=NA))
