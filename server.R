@@ -107,14 +107,14 @@ server <- function(input, output, session) {
       data %<>% mutate(.keep="unused",
                        Exp.Date=dmy(Exp.Date), TradeNr=as.numeric(TradeNr), TradeDate=dmy(TradeDate),
                        Statut=as.factor(Statut), PnL=as.numeric(PnL), Pos=as.numeric(Pos), Prix=as.numeric(Prix),
-                       Comm.=as.numeric(Comm.),Total=as.numeric(Total))
+                       Comm.=as.numeric(Comm.),Total=as.numeric(Total),Risk=as.numeric(Risk), Reward=as.numeric(Reward))
 
       data %<>% filter(Account==input$account) %>%
         select(all_of(trade_fields[-masked_trade_fields]))
 
       #### To reorder columns in the display order
       data %<>% select(TradeNr,TradeDate, Ssjacent, Statut, PnL, `Thème`, Remarques,
-                       Instrument,Pos,Prix, Total,Currency)
+                       Instrument,Pos,Prix, Total,Risk,Reward,Currency)
 
       if (i_s_d() != "All")
         data = data %>% filter(Ssjacent==i_s_d()) %>% select(-Ssjacent)
@@ -126,9 +126,12 @@ server <- function(input, output, session) {
 
   #### Displays all sub_all_trades trades in datatable format
   #### Have Remarques a bit wider than the other fields
+  #### Remove from display Thème
   output$trades = renderDT({
     data = sub_all_trades()
+
     if (!is.null(data)) {
+      data %<>% select(-`Thème`)
       data$Prix=currency_format(data$Prix,data$Currency)
       data$Total=currency_format(data$Total,data$Currency)
       data$PnL=currency_format(data$PnL,data$Currency)
@@ -166,7 +169,8 @@ server <- function(input, output, session) {
     }
   })
 
-  #### Computes and displays PnL stats according to datatable output$trades possibly filtered by user or with selected lines
+  #### Computes and displays realized PnL stats & Total cost stats according to datatable output$trades
+  #### possibly filtered or selected or searched by user
   output$PnL = renderTable({
     print("output$PnL:")
     req(input$trades_rows_all)
@@ -181,19 +185,31 @@ server <- function(input, output, session) {
       ### Compute realized PnL stats and look at currency
       sub_closed_trades= filter(sub_data,Statut=="Fermé")
       print(head(sub_closed_trades))
-      if(is.null(sub_closed_trades)) rPnL_stats=list(Realized_PnL=,Mean_Realized_PnL=0)
+      if(is.null(sub_closed_trades)) rPnL_stats=list(sum=0,mean=0)
       else rPnL_stats=compute_stats(sub_closed_trades$PnL,sub_closed_trades$Currency)
 
-      ### Compute unrealized PnL stats
+      ### Compute total costs stats for opened positions
       sub_opened_trades=filter(sub_data,Statut=="Ouvert" | Statut=="Ajusté")
-      if(is.null(sub_opened_trades)) uPnL_stats=list(Unrealized_PnL=,Mean_Unrealized_PnL=0)
-      else uPnL_stats=compute_stats(sub_opened_trades$Total,sub_opened_trades$Currency)
+      if(is.null(sub_opened_trades)) {
+        cost_stats=list(sum=0,mean=0)
+        risk_stats=list(sum=0,mean=0)
+        reward_stats=list(sum=0,mean=0)
+      }
+      else {
+        cost_stats=compute_stats(sub_opened_trades$Total,sub_opened_trades$Currency)
+        risk_stats=compute_stats(sub_opened_trades$Risk,sub_opened_trades$Currency)
+        reward_stats=compute_stats(sub_opened_trades$Reward,sub_opened_trades$Currency)
+      }
 
-      data.frame(Realized_PnL=rPnL_stats$sum,Mean_Realized_PnL=rPnL_stats$mean,
-                 Unrealized_PnL=uPnL_stats$sum,Mean_Unrealized_PnL=uPnL_stats$mean)
+      data.frame(Realized_PnL=rPnL_stats$sum, Mean_Realized_PnL=rPnL_stats$mean,
+                 Cost=cost_stats$sum, Mean_Cost=cost_stats$mean,
+                 Risk=risk_stats$sum, Mean_Risk=risk_stats$mean,
+                 Reward=reward_stats$sum, Mean_Reward=reward_stats$mean)
     }
     else data.frame(Realized_PnL=0,Mean_Realized_PnL=0,
-                    Unrealized_PnL=0,Mean_Unrealized_PnL=0)
+                    Cost=0,Mean_Cost=0,
+                    Risk=0,Mean_Risk=0,
+                    Reward=0,Mean_Reward=0)
   })
 
   ############################### Tab New Trades #############################
