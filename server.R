@@ -2,31 +2,6 @@
 #### April 2023
 
 ############################  SERVER ##############################
-### Format datatable for Journal entry
-### Special treatment for the \n or <br> HTML tag
-format_datatable = function(dt) {
-  print("format_datatable:")
-  datatable(dt,
-            filter='top',
-            options=list(
-              paging=TRUE,searching=FALSE, info=FALSE,ordering=TRUE,autowidth=TRUE,
-              columnDefs = list(list(
-                targets = "_all",
-                render = JS('function(data, type, full) {
-                  function formatColumn(data) {
-                    return data.replace(/\\n/g, "<br>");
-                  }
-                  return $("<div/>").html(data).text();
-                }')
-              ))
-            )
-            # ,rownames=FALSE
-  ) %>%
-    formatStyle(
-      columns=names(dt),
-      whiteSpace= "pre-wrap") %>%
-    formatCurrency(3:5)
-}
 
 server <- function(input, output, session) {
 
@@ -49,10 +24,13 @@ server <- function(input, output, session) {
   observeEvent(input$loadTrades, {
                 print("loadTrades:")
                 #### Load all trades from Trades.csv file into all_trades reactive value
-                all_trades(as.data.frame(read_delim(file=paste0(NewTrading,"Trades.csv"),
+                df=as.data.frame(read_delim(file=paste0(NewTrading,"Trades.csv"),
                                                      col_names=TRUE,delim=";",
                                                     locale=locale(date_names="en",decimal_mark=".",
-                                                    grouping_mark=" ",encoding="UTF-8"))))
+                                                    grouping_mark=" ",encoding="UTF-8")))
+                ### Add id column at first index position
+                df = rownames_to_column(df,"id")
+                all_trades(df)
                 ##### Update User Interface with values from the Trades.csv file:
                 ####     takes all Trade Nr on both accounts
                 ##### but only dates from current account
@@ -78,7 +56,8 @@ server <- function(input, output, session) {
   observeEvent(input$saveTrades, {
                file.copy(from=paste0(NewTrading,"Trades.csv"),
                          to=paste0(NewTrading,"Trades-old.csv"),overwrite = T)
-               write.table(all_trades(),file=paste0(NewTrading,"Trades.csv"),append=F,
+              ### Remove id column before writing
+               write.table(all_trades()[,-1],file=paste0(NewTrading,"Trades.csv"),append=F,
                            col.names=TRUE,row.names=FALSE,sep=";",dec=".",quote=TRUE)
   })
 
@@ -86,14 +65,103 @@ server <- function(input, output, session) {
   observeEvent(input$modifyTrade,{print("Modify pressed"); actionUser("Modify"); showModalModify()})
   observeEvent(input$deleteTrades,{print("Delete pressed"); actionUser("Delete"); showModalDelete()})
 
-  ### Trade management - 17 fields in Trades.csv file ###################
-  trade_fields=c("TradeNr","Account","TradeDate","Thème","Remarques",
+  # Return the UI for a modal dialog with data selection input for MODIFYING an existing trade
+  #. If 'failed' is TRUE, then display a message that the entered value was invalid.
+  showModalModify <- function() {
+    print("showModalModify():")
+    trade=sub_all_trades()[input$trades_rows_selected,]
+    print("trade:");print(trade)
+    if(nrow(trade)!= 1) display_error_message("There should be only one trade selected!")
+    else
+
+    showModal(
+      modalDialog(
+        textAreaInput("remarques", label = "Remarques",
+                      value = trade$Remarques,
+                      width="400px",height = "200px"),
+        selectInput("theme","Thème", choices=business_lines,selected=trade$`Thème`),
+        selectInput("statut","Statut",choices=c("Ouvert","Ajusté","Fermé"),selected=trade$Statut),
+        numericInput("risk","Risk",value=trade$Risk),
+        numericInput("reward","Reward",value=trade$Reward),
+
+        footer = tagList(
+          modalButton("Cancel"),
+          actionButton("ModalModify_ok", "OK"))
+      )
+    )
+  }
+
+  showModalDelete <- function() {
+    print("showModalDelete():")
+    trade=sub_all_trades()[input$trades_rows_selected,]
+    print("trade:");print(trade)
+    if(nrow(trade)!= 1) display_error_message("There should be only one trade selected!")
+    else
+
+      showModal(
+        modalDialog(
+          h4("Do you really want to delete this trade?"),
+          trade,
+          footer = tagList(
+            modalButton("Cancel"),
+            actionButton("ModalDelete_ok", "OK"))
+        )
+      )
+  }
+
+  observeEvent(input$ModalDelete_ok, {
+    print("observeEventModalDelete_ok:")
+
+    row_id= sub_all_trades()[input$trades_rows_selected,"id"]
+    print(paste0("row_id",row_id))
+
+    trade_to_delete= all_trades()
+    all_trades(trade_to_delete[trade_to_delete[,"id"]!=row_id,])
+    removeModal()
+  })
+
+  observeEvent(input$ModalModify_ok, {
+      print("observeEventModalModify_ok:")
+      print(paste0("theme:",input$theme," reward:",input$reward," risk:", input$risk," remarques:",input$remarques))
+
+      trade=sub_all_trades()[input$trades_rows_selected,]
+      if (nrow(trade) !=1) display_error_message(paste(sum(indices),"row(s) fit with selected trade!!"))
+      else {
+        trade$Statut = input$statut
+        trade$`Thème` = input$theme
+        trade$Reward = input$reward
+        trade$Risk=input$risk
+        trade$Remarques = input$remarques
+
+        modify_trade(trade)
+      }
+
+      removeModal()
+  })
+
+
+
+  modify_trade= function(trade) {
+    print("modify_trade():")
+    trade_to_modify= all_trades()
+    row_id= sub_all_trades()[input$trades_rows_selected,"id"]
+    column_subset= c("Statut","Thème","Risk","Reward","Remarques")
+
+    trade_to_modify[trade_to_modify[,"id"]==trade$id,column_subset]=trade[,column_subset]
+
+    print(trade_to_modify[trade$id,])
+    all_trades(trade_to_modify)
+  }
+
+
+  ### Trade management - 18 fields in all_trades() ###################
+  trade_fields=c("id","TradeNr","Account","TradeDate","Thème","Remarques",
                  "Instrument","Ssjacent","Pos","Prix","Comm.",
                  "Total","Exp.Date","Risk",
                  "Reward","PnL","Statut","Currency")
   #### 6 fields masked => only 13 displayed + Currency field special case
   #### Account, Comm., Exp.Date masked
-  masked_trade_fields=c(2,10,12)
+  masked_trade_fields=c(3,11,13)
 
 
   #### All trades filtered according to account
@@ -113,13 +181,14 @@ server <- function(input, output, session) {
         select(all_of(trade_fields[-masked_trade_fields]))
 
       #### To reorder columns in the display order
-      data %<>% select(TradeNr,TradeDate, Ssjacent, Statut, PnL, `Thème`, Remarques,
+      data %<>% select(id,TradeNr,TradeDate, Ssjacent, Statut, PnL, `Thème`, Remarques,
                        Instrument,Pos,Prix, Total,Risk,Reward,Currency)
 
       if (i_s_d() != "All")
         data = data %>% filter(Ssjacent==i_s_d()) %>% select(-Ssjacent)
 
       data %<>% filter(TradeDate >= ymd(input$init_date), TradeNr >=input$init_nr)
+      print(head(data))
       data
     }
   })
@@ -128,7 +197,8 @@ server <- function(input, output, session) {
   #### Have Remarques a bit wider than the other fields
   #### Remove from display Thème
   output$trades = renderDT({
-    data = sub_all_trades()
+    ## Do not display id
+    data = sub_all_trades()[,-1]
 
     if (!is.null(data)) {
       data %<>% select(-`Thème`)
@@ -184,7 +254,6 @@ server <- function(input, output, session) {
 
       ### Compute realized PnL stats and look at currency
       sub_closed_trades= filter(sub_data,Statut=="Fermé")
-      print(head(sub_closed_trades))
       if(is.null(sub_closed_trades)) rPnL_stats=list(sum=0,mean=0)
       else rPnL_stats=compute_stats(sub_closed_trades$PnL,sub_closed_trades$Currency)
 
@@ -354,7 +423,9 @@ server <- function(input, output, session) {
 
     ### Contained in data are the following fields:
     ### TradeDate;Description;Ssjacent;Exp.Date;Pos;Prix;Comm.;Total;Statut;Curr.
+    id=max(as.numeric(all_trades()$id))+1
     new_trade = data
+    end_trade$id= id:(id+nrow(end_trade)-1)
     new_trade$TradeNr=trade_nr
     new_trade$Account=account
     new_trade$`Thème`=theme
@@ -384,8 +455,9 @@ server <- function(input, output, session) {
     print("adjust_trade():")
     ### First retrieve initial trade
     initial_trade = filter(all_trades(),TradeNr==trade_nr)
-
+    id=max(as.numeric(all_trades()$id))+1
     end_trade = data
+    end_trade$id= id:(id+nrow(end_trade)-1)
     end_trade$TradeNr=trade_nr
     end_trade$Account=account
     end_trade$`Thème`=unique(initial_trade$`Thème`) ### Same theme for all legs of initial trade
@@ -410,8 +482,9 @@ server <- function(input, output, session) {
   close_trade = function(account,trade_nr,text,data) {
     ### First retrieve initial trade
     initial_trade = filter(all_trades(),TradeNr==trade_nr)
-
+    id=max(as.numeric(all_trades()$id))+1
     end_trade = data
+    end_trade$id= id:(id+nrow(end_trade)-1)
     end_trade$TradeNr=trade_nr
     end_trade$Account=account
     end_trade$`Thème`=unique(initial_trade$`Thème`) ### Same theme for all legs of initial trade

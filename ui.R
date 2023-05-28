@@ -19,7 +19,7 @@ ui <- fluidPage(
            tabsetPanel(type = "tabs",
                        tabPanel("Trades",
                                 h3("TRADE"),
-                                h4("Realized and unrealized PnL"),
+                                h4("Realized PnL, Cost, Risk and Reward stats"),
                                 h5(tableOutput("PnL")),
                                 DTOutput("trades"),
                                 actionButton("loadTrades","Load", icon("truck"),

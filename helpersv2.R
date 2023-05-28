@@ -190,3 +190,44 @@ readTrades= function(file,typeAccount){
   return(trade)
 }
 
+################  Display error message
+
+display_error_message = function(error_msg) {
+  showModal(modalDialog(
+    title = "Error message",
+    error_msg,
+    easyClose = TRUE,
+    footer = NULL
+  ))
+}
+
+##########################
+
+### Format datatable for Journal entry
+### Special treatment for the \n or <br> HTML tag
+format_datatable = function(dt) {
+  print("format_datatable:")
+  datatable(dt,
+            filter='top',
+            options=list(
+              paging=TRUE,searching=FALSE, info=FALSE,ordering=TRUE,autowidth=TRUE,
+              columnDefs = list(list(
+                targets = "_all",
+                render = JS('function(data, type, full) {
+                  function formatColumn(data) {
+                    return data.replace(/\\n/g, "<br>");
+                  }
+                  return $("<div/>").html(data).text();
+                }')
+              ))
+            )
+            # ,rownames=FALSE
+  ) %>%
+    formatStyle(
+      columns=names(dt),
+      whiteSpace= "pre-wrap") %>%
+    formatCurrency(3:5)
+}
+
+
+
