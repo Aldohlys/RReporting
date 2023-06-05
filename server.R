@@ -81,6 +81,7 @@ server <- function(input, output, session) {
                       width="400px",height = "200px"),
         selectInput("theme","Thème", choices=business_lines,selected=trade$`Thème`),
         selectInput("statut","Statut",choices=c("Ouvert","Ajusté","Fermé"),selected=trade$Statut),
+        numericInput("tradenr","TradeNr",value=trade$TradeNr),
         numericInput("risk","Risk",value=trade$Risk),
         numericInput("reward","Reward",value=trade$Reward),
 
@@ -127,6 +128,7 @@ server <- function(input, output, session) {
       trade=sub_all_trades()[input$trades_rows_selected,]
       if (nrow(trade) !=1) display_error_message(paste(sum(indices),"row(s) fit with selected trade!!"))
       else {
+        trade$TradeNr = input$tradenr
         trade$Statut = input$statut
         trade$`Thème` = input$theme
         trade$Reward = input$reward
@@ -145,7 +147,7 @@ server <- function(input, output, session) {
     print("modify_trade():")
     trade_to_modify= all_trades()
     row_id= sub_all_trades()[input$trades_rows_selected,"id"]
-    column_subset= c("Statut","Thème","Risk","Reward","Remarques")
+    column_subset= c("TradeNr","Statut","Thème","Risk","Reward","Remarques")
 
     trade_to_modify[trade_to_modify[,"id"]==trade$id,column_subset]=trade[,column_subset]
 
@@ -218,6 +220,7 @@ server <- function(input, output, session) {
             list(targets = "Total",width='100px'),
             list(targets = "PnL",width='60px'),
 
+
             list(targets = "Remarques",
               render = JS('function(data, type, full) {
                   function formatColumn(data) {
@@ -239,10 +242,10 @@ server <- function(input, output, session) {
     }
   })
 
-  #### Computes and displays realized PnL stats & Total cost stats according to datatable output$trades
+  #### Computes and displays realized PnL stats & Total credit/debit stats according to datatable output$trades
   #### possibly filtered or selected or searched by user
-  output$PnL = renderTable({
-    print("output$PnL:")
+  output$stats = renderTable({
+    print("output$stats")
     req(input$trades_rows_all)
 
     data = sub_all_trades()
@@ -251,32 +254,32 @@ server <- function(input, output, session) {
     else sub_data=data[input$trades_rows_selected,]
 
     if (!is.null(sub_data)) {
+      ### Compute debit/credit totals taking into account currency
+      debit_credit_stats=compute_stats(sub_data$Total,sub_data$Currency)
 
-      ### Compute realized PnL stats and look at currency
+      ### Compute realized PnL stats on closed positions taking into account currency
       sub_closed_trades= filter(sub_data,Statut=="Fermé")
       if(is.null(sub_closed_trades)) rPnL_stats=list(sum=0,mean=0)
       else rPnL_stats=compute_stats(sub_closed_trades$PnL,sub_closed_trades$Currency)
 
-      ### Compute total costs stats for opened positions
+      ### Compute risk and reward stats for opened/adjusted positions only
       sub_opened_trades=filter(sub_data,Statut=="Ouvert" | Statut=="Ajusté")
       if(is.null(sub_opened_trades)) {
-        cost_stats=list(sum=0,mean=0)
         risk_stats=list(sum=0,mean=0)
         reward_stats=list(sum=0,mean=0)
       }
       else {
-        cost_stats=compute_stats(sub_opened_trades$Total,sub_opened_trades$Currency)
         risk_stats=compute_stats(sub_opened_trades$Risk,sub_opened_trades$Currency)
         reward_stats=compute_stats(sub_opened_trades$Reward,sub_opened_trades$Currency)
       }
 
       data.frame(Realized_PnL=rPnL_stats$sum, Mean_Realized_PnL=rPnL_stats$mean,
-                 Cost=cost_stats$sum, Mean_Cost=cost_stats$mean,
+                 `Debit&Credit`=debit_credit_stats$sum, `Mean_Debit&Credit`=debit_credit_stats$mean,
                  Risk=risk_stats$sum, Mean_Risk=risk_stats$mean,
                  Reward=reward_stats$sum, Mean_Reward=reward_stats$mean)
     }
     else data.frame(Realized_PnL=0,Mean_Realized_PnL=0,
-                    Cost=0,Mean_Cost=0,
+                    `Debit&Credit`==0,`Mean_Debit&Credit`=0,
                     Risk=0,Mean_Risk=0,
                     Reward=0,Mean_Reward=0)
   })
@@ -425,7 +428,7 @@ server <- function(input, output, session) {
     ### TradeDate;Description;Ssjacent;Exp.Date;Pos;Prix;Comm.;Total;Statut;Curr.
     id=max(as.numeric(all_trades()$id))+1
     new_trade = data
-    end_trade$id= id:(id+nrow(end_trade)-1)
+    new_trade$id= id:(id+nrow(new_trade)-1)
     new_trade$TradeNr=trade_nr
     new_trade$Account=account
     new_trade$`Thème`=theme

@@ -1,10 +1,11 @@
 ### Creation date 02.12.2022
 library(shiny)
+library(lubridate) #### For today() function
 library(dplyr)
+library(tibble)
 library(DescTools) ## For GCD
 library(quantmod)  ### Retrieve last market values
 #### library(shinyWidgets) ## for radioGroupButtons widget
-library(lubridate) #### For today() function
 library(DT)  ### Data table
 library(scales) ### label_percent function
 library(readr) ## for read_delim function
@@ -42,21 +43,25 @@ currency_format = function(amount,currency){
              "USD"~  ifelse (!is.na(amount), dollar(amount), NA))
 }
 
-reticulate::py_run_file("C:/Users/aldoh/Documents/R/Trading/RAnalysis/getContractValue.py")
+reticulate::py_run_file("C:/Users/aldoh/Documents/R/Repo/RAnalysis/getContractValue.py")
+EUR = double()
+CHF= double()
+EUR = tryCatch(
+  py$getCurrencyPairValue("EURUSD",reqType=2),
+  error=function(e) {
+    cat("\nNo value for EUR-USD pair\nEnter new value: ")
+    scan(what=double(),nmax=1)
+  }
+)
 
-EUR = py$getCurrencyPairValue("EURUSD",reqType=2)
-if(is.na(EUR)) {
-  cat("No value for EUR-USD pair\nEnter new value: ")
-  EUR=readLines(con="stdin", n=1)[[1]]
-}
-EUR=as.double(EUR)
+CHF = tryCatch(
+  py$getCurrencyPairValue("CHFUSD",reqType=2),
+  error=function(e) {
+      cat("No value for CHF-USD pair\nEnter new value: ")
+    scan(what=double(),nmax=1)
+  }
+)
 
-CHF = py$getCurrencyPairValue("CHFUSD",reqType=2)
-if(is.na(CHF)) {
-  cat("No value for CHF-USD pair\nEnter new value: ")
-  CHF=readLines(con="stdin", n=1)[[1]]
-}
-CHF= as.double(CHF)
 USD=as.double(1)
 
 
