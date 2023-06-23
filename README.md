@@ -28,4 +28,11 @@ After it is possible to save the updated Trades.csv file
 
 **Missing features:**
 
-None?
+-   P1: RReporting does not work in batch mode (Rscript or R identical
+    behaviour) : "'case_match' n'est un object exporté depuis
+    'namespace:dplyr' - even if `case_match` belongs to dplyr which is
+    loaded at begin of helpersv2.r - verified with
+
+    ```         
+    "case_match" %in% getNamespaceExports("dplyr")
+    ```

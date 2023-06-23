@@ -2,7 +2,7 @@
 library(shiny)
 library(lubridate) #### For today() function
 library(dplyr)
-library(tibble)
+library(tibble)  ### for rownames_to_column function
 library(DescTools) ## For GCD
 library(quantmod)  ### Retrieve last market values
 #### library(shinyWidgets) ## for radioGroupButtons widget
@@ -37,13 +37,16 @@ currency_format = function(amount,currency){
     accuracy=0.01
   )
 
-  case_match(currency,
+  dplyr::case_match(currency,
              "EUR" ~ ifelse (!is.na(amount), euro(amount), NA),
              "CHF"~  ifelse (!is.na(amount), chf(amount), NA),
              "USD"~  ifelse (!is.na(amount), dollar(amount), NA))
 }
 
+### In the batch file, condaenv is called and activated
+####reticulate::use_condaenv(condaenv="trading",required=TRUE)
 reticulate::py_run_file("C:/Users/aldoh/Documents/R/Repo/RAnalysis/getContractValue.py")
+
 EUR = double()
 CHF= double()
 EUR = tryCatch(
